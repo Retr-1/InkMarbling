@@ -9,7 +9,8 @@ namespace retr {
 		float c;
 
 		Line2d(const olc::vi2d& p0, const olc::vi2d& p1) {
-			auto u = p1 - p0;
+			olc::vf2d u = (p1 - p0);
+			u = u.norm();
 			a = u.y;
 			b = -u.x;
 			c = -(a * p0.x + b * p0.y);
@@ -75,21 +76,31 @@ namespace retr {
 					auto& p2 = remPoints[(i + 1) % remPoints.size()];
 
 					Line2d line1(p0, p2);
+					olc::vi2d mid = (p0 + p2) / 2;
+					Line2d midline(mid, mid + olc::vi2d(10, 0));
 
+					bool oddIntersects = false;
 					for (int j = 0; j < remPoints.size(); j++) {
 						auto& k0 = remPoints[j];
 						auto& k1 = remPoints[(j + 1) % remPoints.size()];
 						
 						Line2d line2(k0, k1);
 						olc::vi2d intersection = line1.intersection(line2);
-						if (intersection.x > std::min(p0.x, p2.x) && intersection.x < std::max(p0.x, p2.x)) {
+						if (intersection.x > std::min(p0.x, p2.x) && intersection.x < std::max(p0.x, p2.x) && intersection.x > std::min(k0.x, k1.x) && intersection.x < std::max(k0.x,k1.x)) {
 							goto ELSE_END_J;
 						}
-					}
 
-					triangles.push_back(tri(p0, p1, p2, remPoints.size() / (float)points.size() * 255));
-					remPoints.erase(remPoints.begin() + i);
-					goto ELSE_END_I;
+						intersection = midline.intersection(line2);
+						if (intersection.x > std::min(k0.x, k1.x) && intersection.x < std::max(k0.x, k1.x) && intersection.x > mid.x) {
+							oddIntersects = !oddIntersects;
+						}
+					}
+					
+					if (oddIntersects) {
+						triangles.push_back(tri(p0, p1, p2, remPoints.size() / (float)points.size() * 255));
+						remPoints.erase(remPoints.begin() + i);
+						goto ELSE_END_I;
+					}
 
 					ELSE_END_J:;
 
