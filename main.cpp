@@ -66,7 +66,7 @@ namespace retr {
 						}
 						else {
 							float a = (k1.y - k0.y) / (float)(k1.x - k0.x);
-							float b = k0.y - k1.x * a;
+							float b = k0.y - k0.x * a;
 							// y = ax + b
 							// x = (y-b)/a
 							int intersectX = (mid.y - b) / a;
@@ -80,9 +80,13 @@ namespace retr {
 						tri triangle(p0, p1, p2);
 						triangles.push_back(triangle);
 						remPoints.erase(remPoints.begin() + i);
-						break;
+						goto ELSE_END;
 					}
 				}
+
+				std::cout << "DID not find\n";
+				break;
+				ELSE_END:;
 			}
 
 			//tri triangle(remPoints[0], remPoints[1], remPoints[2]);
@@ -131,6 +135,9 @@ public:
 		pol.draw(*this);
 		for (auto& p : pol.points) {
 			DrawCircle(p, 5, olc::RED);
+		}
+		for (int i = 0; i < pol.points.size(); i++) {
+			DrawLine(pol.points[i], pol.points[(i + 1) % pol.points.size()], olc::GREEN);
 		}
 
 		return true;
