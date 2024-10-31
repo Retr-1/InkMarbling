@@ -3,6 +3,30 @@
 #include "olcPixelGameEngine.h"
 
 namespace retr {
+	struct Line2d {
+		float a;
+		float b;
+		float c;
+
+		Line2d(const olc::vi2d& p0, const olc::vi2d& p1) {
+			auto u = p1 - p0;
+			a = u.y;
+			b = -u.x;
+			c = -(a * p0.x + b * p0.y);
+		}
+
+		olc::vi2d intersection(const Line2d& other) {
+			// a1*x + b1*y + c1 = 0
+			// a2*x + b2*y + c2 = 0
+			// x = -(b1*y + c1)/a1
+			// -a2*b1*y/a1 -a2*c1/a1 + b2*y + c2 = 0
+			// y = (a2*c1/a1 - c2)/(-a2*b1/a1 + b2)
+			float y = (other.a * c / a - other.c) / (-other.a * b / a + other.b);
+			float x = -(b * y + c) / a;
+			return olc::vi2d(x, y);
+		}
+
+	};
 	class Polygon {
 	private:
 		struct tri {
@@ -49,7 +73,7 @@ namespace retr {
 					auto& p1 = remPoints[i];
 					auto& p2 = remPoints[(i + 1) % remPoints.size()];
 
-					olc::vi2d mid = (p0 + p2) / 2;
+					
 
 					bool inside = false;
 					for (int j = 0; j < remPoints.size(); j++) {
