@@ -6,13 +6,17 @@
 class Polygon {
 private:
 	struct tri {
-		int p0;
-		int p1;
-		int p2;
+		olc::vi2d p1;
+		olc::vi2d p2;
+		olc::vi2d p3;
+
+		tri(const olc::vi2d& p1, const olc::vi2d& p2, const olc::vi2d& p3) : p1(p1), p2(p2), p3(p3) {}
+		tri() {}
 	};
 	std::vector<tri> triangles;
+
 public:
-	std::vector<olc::vf2d> points;
+	std::vector<olc::vi2d> points;
 	olc::Pixel color;
 
 	static Polygon createCircle(float r, float x, float y, int nPoints=10) {
@@ -26,25 +30,59 @@ public:
 	}
 
 	void draw(olc::PixelGameEngine& canvas) {
-	
+		for (const auto& t : triangles) {
+			canvas.FillTriangle(t.p1, t.p2, t.p3, color);
+		}
 	}
 
 	void calculateTriangles() {
-		
-		for (int i = 0; i < points.size(); i++) {
-			auto& p0 = points[(i - 1 + points.size()) % points.size()];
-			auto& p1 = points[i];
-			auto& p2 = points[(i + 1) % points.size()];
+		std::vector<olc::vi2d> remPoints = points;
+		triangles.clear();
 
-			olc::vf2d mid = (p0 + p2) / 2;
+		while (remPoints.size() > 3) {
+			for (int i = 0; i < remPoints.size(); i++) {
+				auto& p0 = remPoints[(i - 1 + remPoints.size()) % remPoints.size()];
+				auto& p1 = remPoints[i];
+				auto& p2 = remPoints[(i + 1) % remPoints.size()];
 
-			bool inside = false;
-			for (int j = 0; j < points.size(); j++) {
-				auto& k0 = points[j];
-				auto& k1 = points[(j + 1) % points.size()];
+				olc::vi2d mid = (p0 + p2) / 2;
 
+				bool inside = false;
+				for (int j = 0; j < remPoints.size(); j++) {
+					auto& k0 = remPoints[j];
+					auto& k1 = remPoints[(j + 1) % remPoints.size()];
+
+					if (std::max(k0.y, k1.y) < mid.y || std::min(k0.y, k1.y) > mid.y)
+						continue;
+
+					if (k0.x == k1.x) {
+						if (mid.x <= k0.x) {
+							inside = !inside;
+						}
+					}
+					else {
+						float a = (k1.y - k0.y) / (float)(k1.x - k0.x);
+						float b = k0.y - k1.x * a;
+						// y = ax + b
+						// x = (y-b)/a
+						int intersectX = (mid.y - b) / a;
+						if (mid.x <= intersectX) {
+							inside = !inside;
+						}
+					}
+				}
+
+				if (inside) {
+					tri triangle(p0,p1,p2);
+					triangles.push_back(triangle);
+					remPoints.erase(remPoints.begin() + i);
+					break;
+				}
 			}
 		}
+
+		//tri triangle(remPoints[0], remPoints[1], remPoints[2]);
+		triangles.push_back(tri(remPoints[0], remPoints[1], remPoints[2]));
 	}
 };
 
