@@ -33,8 +33,9 @@ namespace retr {
 			olc::vi2d p1;
 			olc::vi2d p2;
 			olc::vi2d p3;
+			float color;
 
-			tri(const olc::vi2d& p1, const olc::vi2d& p2, const olc::vi2d& p3) : p1(p1), p2(p2), p3(p3) {}
+			tri(const olc::vi2d& p1, const olc::vi2d& p2, const olc::vi2d& p3, float c=0) : p1(p1), p2(p2), p3(p3),color(c) {}
 			tri() {}
 		};
 		std::vector<tri> triangles;
@@ -55,7 +56,7 @@ namespace retr {
 
 		void draw(olc::PixelGameEngine& canvas) {
 			for (const auto& t : triangles) {
-				canvas.FillTriangle(t.p1, t.p2, t.p3, color);
+				canvas.FillTriangle(t.p1, t.p2, t.p3, olc::Pixel(t.color, t.color, t.color));
 			}
 		}
 
@@ -73,48 +74,34 @@ namespace retr {
 					auto& p1 = remPoints[i];
 					auto& p2 = remPoints[(i + 1) % remPoints.size()];
 
-					
+					Line2d line1(p0, p2);
 
-					bool inside = false;
 					for (int j = 0; j < remPoints.size(); j++) {
 						auto& k0 = remPoints[j];
 						auto& k1 = remPoints[(j + 1) % remPoints.size()];
-
-						if (std::max(k0.y, k1.y) < mid.y || std::min(k0.y, k1.y) > mid.y)
-							continue;
-
-						if (k0.x == k1.x) {
-							if (mid.x <= k0.x) {
-								inside = !inside;
-							}
-						}
-						else {
-							float a = (k1.y - k0.y) / (float)(k1.x - k0.x);
-							float b = k0.y - k0.x * a;
-							// y = ax + b
-							// x = (y-b)/a
-							int intersectX = (mid.y - b) / a;
-							if (mid.x <= intersectX) {
-								inside = !inside;
-							}
+						
+						Line2d line2(k0, k1);
+						olc::vi2d intersection = line1.intersection(line2);
+						if (intersection.x > std::min(p0.x, p2.x) && intersection.x < std::max(p0.x, p2.x)) {
+							goto ELSE_END_J;
 						}
 					}
 
-					if (inside) {
-						tri triangle(p0, p1, p2);
-						triangles.push_back(triangle);
-						remPoints.erase(remPoints.begin() + i);
-						goto ELSE_END;
-					}
+					triangles.push_back(tri(p0, p1, p2, remPoints.size() / (float)points.size() * 255));
+					remPoints.erase(remPoints.begin() + i);
+					goto ELSE_END_I;
+
+					ELSE_END_J:;
+
 				}
-
-				std::cout << "DID not find\n";
+				std::cout << "DIDNT FIND\n";
 				break;
-				ELSE_END:;
-			}
 
+				ELSE_END_I:;
+			}
+	
 			//tri triangle(remPoints[0], remPoints[1], remPoints[2]);
-			triangles.push_back(tri(remPoints[0], remPoints[1], remPoints[2]));
+			triangles.push_back(tri(remPoints[0], remPoints[1], remPoints[2],10));
 		}
 	};
 }
