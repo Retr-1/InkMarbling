@@ -6,24 +6,42 @@ namespace retr {
 	struct Line2d {
 		float a;
 		float b;
-		float c;
+		bool vertical = false;
 
 		Line2d(const olc::vi2d& p0, const olc::vi2d& p1) {
-			olc::vf2d u = (p1 - p0);
-			u = u.norm();
-			a = u.y;
-			b = -u.x;
-			c = -(a * p0.x + b * p0.y);
+			if (p0.x == p1.x) {
+				vertical = true;
+				a = p0.y;
+				b = p0.x;
+			}
+			else {
+				a = (p1.y - p0.y) / (float)(p1.x - p0.x);
+				b = p0.y - p0.x * a;
+			}
 		}
 
 		olc::vi2d intersection(const Line2d& other) {
-			// a1*x + b1*y + c1 = 0
-			// a2*x + b2*y + c2 = 0
-			// x = -(b1*y + c1)/a1
-			// -a2*b1*y/a1 -a2*c1/a1 + b2*y + c2 = 0
-			// y = (a2*c1/a1 - c2)/(-a2*b1/a1 + b2)
-			float y = (other.a * c / a - other.c) / (-other.a * b / a + other.b);
-			float x = -(b * y + c) / a;
+			// y = a1x + b1
+			// y = a2x + b2
+			// a1x + b1 = a2x + b2
+			// x = (b2-b1) / (a1-a2)
+			float x = 0, y = 0;
+			if (vertical || other.vertical) {
+				if (!vertical) {
+					x = other.b;
+					y = a * x + b;
+				}
+				else if (!other.vertical) {
+					x = b;
+					y = other.a * x + other.b;
+				}
+			}
+			else {
+				if (a != other.a) {
+					x = (other.b - b) / (a - other.a);
+					y = a * x + b;
+				}
+			}
 			return olc::vi2d(x, y);
 		}
 
@@ -55,6 +73,26 @@ namespace retr {
 			return pol;
 		}
 
+		bool isInside(olc::vi2d point, olc::PixelGameEngine& canvas) {
+			Line2d line1(point, point + olc::vi2d(10, 0));
+
+			bool oddIntersects = false;
+			for (int j = 0; j < points.size(); j++) {
+				auto& k0 = points[j];
+				auto& k1 = points[(j + 1) % points.size()];
+
+				Line2d line2(k0, k1);
+
+				olc::vi2d intersection = line1.intersection(line2);
+				canvas.DrawCircle(intersection, 3, olc::CYAN);
+				if (intersection.x > std::min(k0.x, k1.x) && intersection.x < std::max(k0.x, k1.x) && intersection.x > point.x) {
+					oddIntersects = !oddIntersects;
+				}
+			}
+
+			return oddIntersects;
+		}
+
 		void draw(olc::PixelGameEngine& canvas) {
 			for (const auto& t : triangles) {
 				canvas.FillTriangle(t.p1, t.p2, t.p3, olc::Pixel(t.color, t.color, t.color));
@@ -76,7 +114,7 @@ namespace retr {
 					auto& p2 = remPoints[(i + 1) % remPoints.size()];
 
 					Line2d line1(p0, p2);
-					olc::vi2d mid = (p0 + p2) / 2;
+					olc::vi2d mid = p0 + (p2 - p0) / 2;
 					Line2d midline(mid, mid + olc::vi2d(10, 0));
 
 					bool oddIntersects = false;
@@ -112,7 +150,7 @@ namespace retr {
 			}
 	
 			//tri triangle(remPoints[0], remPoints[1], remPoints[2]);
-			triangles.push_back(tri(remPoints[0], remPoints[1], remPoints[2],10));
+			triangles.push_back(tri(remPoints[0], remPoints[1], remPoints[2],50));
 		}
 	};
 }
@@ -152,6 +190,9 @@ public:
 			pol.points.push_back(GetMousePos());
 			pol.calculateTriangles();
 		}
+		if (GetKey(olc::R).bPressed) {
+			pol.points.clear();
+		}
 
 		Clear(olc::BLACK);
 		pol.draw(*this);
@@ -160,6 +201,10 @@ public:
 		}
 		for (int i = 0; i < pol.points.size(); i++) {
 			DrawLine(pol.points[i], pol.points[(i + 1) % pol.points.size()], olc::GREEN);
+		}
+
+		if (pol.isInside(GetMousePos(), *this)) {
+			FillCircle(GetMousePos(), 5, olc::BLUE);
 		}
 
 		return true;
