@@ -73,24 +73,22 @@ namespace retr {
 			return pol;
 		}
 
-		bool isInside(olc::vi2d point, olc::PixelGameEngine& canvas) {
-			Line2d line1(point, point + olc::vi2d(10, 0));
-
-			bool oddIntersects = false;
+		bool isInside(const olc::vi2d& point, olc::PixelGameEngine& canvas) {
+			bool inside = false;
 			for (int j = 0; j < points.size(); j++) {
 				auto& k0 = points[j];
 				auto& k1 = points[(j + 1) % points.size()];
 
-				Line2d line2(k0, k1);
-
-				olc::vi2d intersection = line1.intersection(line2);
-				canvas.DrawCircle(intersection, 3, olc::CYAN);
-				if (intersection.x > std::min(k0.x, k1.x) && intersection.x < std::max(k0.x, k1.x) && intersection.x > point.x) {
-					oddIntersects = !oddIntersects;
+				if (point.y > std::min(k0.y, k1.y) && point.y <= std::max(k0.y, k1.y) && point.x <= std::max(k0.x, k1.x)) {
+					double x_intersection = (point.y - k0.y) * (k1.x - k0.x) / (double)(k1.y - k0.y) + k0.x;
+					canvas.DrawCircle((int32_t)x_intersection, point.y, 5, olc::GREEN);
+					if (k0.x == k1.x || point.x <= x_intersection) {
+						inside = !inside;
+					}
 				}
 			}
 
-			return oddIntersects;
+			return inside;
 		}
 
 		void draw(olc::PixelGameEngine& canvas) {
