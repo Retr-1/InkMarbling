@@ -1,6 +1,7 @@
 
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
+using namespace std;
 
 namespace retr {
 	struct Line2d {
@@ -47,18 +48,6 @@ namespace retr {
 
 	};
 	class Polygon {
-	private:
-		struct tri {
-			olc::vi2d p1;
-			olc::vi2d p2;
-			olc::vi2d p3;
-			float color;
-
-			tri(const olc::vi2d& p1, const olc::vi2d& p2, const olc::vi2d& p3, float c=0) : p1(p1), p2(p2), p3(p3),color(c) {}
-			tri() {}
-		};
-		std::vector<tri> triangles;
-
 	public:
 		std::vector<olc::vi2d> points;
 		olc::Pixel color;
@@ -92,63 +81,78 @@ namespace retr {
 		}
 
 		void draw(olc::PixelGameEngine& canvas) {
-			for (const auto& t : triangles) {
-				canvas.FillTriangle(t.p1, t.p2, t.p3, olc::Pixel(t.color, t.color, t.color));
+			std::vector<std::tuple<int, int>> events;
+			int ymin = points[0].y;
+			int ymax = points[0].y;
+
+			for (int i = 0; i < points.size(); i++) {
+				/*int j = i;
+				int k = (i + 1) % points.size();
+				if (points[j].y < points[k].y) {
+					std::swap(j, k);
+				}*/
+
+				events.push_back(std::make_tuple(points[i].y, i));
+				events.push_back(std::make_tuple(points[j].y, i));
+				ymin = std::min(points[i].y, ymin);
+				ymax = std::max(points[i].y, ymax);
 			}
-		}
 
-		void calculateTriangles() {
-			std::vector<olc::vi2d> remPoints = points;
-			triangles.clear();
+			std::sort(events.begin(), events.end());
 
-			if (remPoints.size() < 3) {
-				return;
-			}
+			struct SweepObject {
+				double x;
+				double dx;
+				int id;
+			};
 
-			while (remPoints.size() > 3) {
-				for (int i = 0; i < remPoints.size(); i++) {
-					auto& p0 = remPoints[(i - 1 + remPoints.size()) % remPoints.size()];
-					auto& p1 = remPoints[i];
-					auto& p2 = remPoints[(i + 1) % remPoints.size()];
+			std::vector<SweepObject> sweepline;
 
-					Line2d line1(p0, p2);
-					olc::vi2d mid = p0 + (p2 - p0) / 2;
-					Line2d midline(mid, mid + olc::vi2d(10, 0));
+			int e = 0;
 
-					bool oddIntersects = false;
-					for (int j = 0; j < remPoints.size(); j++) {
-						auto& k0 = remPoints[j];
-						auto& k1 = remPoints[(j + 1) % remPoints.size()];
-						
-						Line2d line2(k0, k1);
-						olc::vi2d intersection = line1.intersection(line2);
-						if (intersection.x > std::min(p0.x, p2.x) && intersection.x < std::max(p0.x, p2.x) && intersection.x > std::min(k0.x, k1.x) && intersection.x < std::max(k0.x,k1.x)) {
-							goto ELSE_END_J;
-						}
-
-						intersection = midline.intersection(line2);
-						if (intersection.x > std::min(k0.x, k1.x) && intersection.x < std::max(k0.x, k1.x) && intersection.x > mid.x) {
-							oddIntersects = !oddIntersects;
-						}
-					}
+			for (int y = ymin; y <= ymax; y++) {
+				while (e < events.size() && std::get<0>(events[e]) <= y) {
+					int id = get<1>(events[e]);
 					
-					if (oddIntersects) {
-						triangles.push_back(tri(p0, p1, p2, remPoints.size() / (float)points.size() * 255));
-						remPoints.erase(remPoints.begin() + i);
-						goto ELSE_END_I;
+					int i = id;
+					int j = (i + 1) % points.size();
+					if (points[i].y > points[j].y) {
+						swap(i, j);
 					}
 
-					ELSE_END_J:;
-
+					if (points[j].y > y) {
+						// adding
+						SweepObject swee;
+						swee.x = points[i].x;
+						swee.dx = (points[j].x - points[i].x) / (double)(points[j].y - points[i].y);
+						swee.id = id;
+						sweepline.push_back(swee);
+					}
+					else {
+						// removing
+						for (int k = 0; k < sweepline.size(); k++) {
+							if (sweepline[k].id == id) {
+								sweepline.erase(sweepline.begin() + k);
+								break;
+							}
+						}
+					}
+					e++;
 				}
-				std::cout << "DIDNT FIND\n";
-				break;
 
-				ELSE_END_I:;
+				sort(sweepline.begin(), sweepline.end(), [](const SweepObject& o1, const SweepObject& o2)->bool {
+					return o1.x < o2.x;
+				});
+
+				for (int i = 0; i+1 < sweepline.size(); i += 2) {
+					canvas.DrawLine(sweepline[i].x, y, sweepline[i + 1].x, y, color);
+				}
+
+				for (int i = 0; i < sweepline.size(); i++) {
+					sweepline[i].x += sweepline[i].dx;
+				}
 			}
-	
-			//tri triangle(remPoints[0], remPoints[1], remPoints[2]);
-			triangles.push_back(tri(remPoints[0], remPoints[1], remPoints[2],50));
+
 		}
 	};
 }
