@@ -81,6 +81,8 @@ namespace retr {
 		}
 
 		void draw(olc::PixelGameEngine& canvas) {
+			if (points.size() == 0) return;
+
 			std::vector<std::tuple<int, int>> events;
 			int ymin = points[0].y;
 			int ymax = points[0].y;
@@ -91,7 +93,7 @@ namespace retr {
 				if (points[j].y < points[k].y) {
 					std::swap(j, k);
 				}*/
-
+				int j = (i + 1) % points.size();
 				events.push_back(std::make_tuple(points[i].y, i));
 				events.push_back(std::make_tuple(points[j].y, i));
 				ymin = std::min(points[i].y, ymin);
@@ -190,7 +192,6 @@ public:
 		// Called once per frame, draws random coloured pixels
 		if (GetMouse(0).bPressed) {
 			pol.points.push_back(GetMousePos());
-			pol.calculateTriangles();
 		}
 		if (GetKey(olc::R).bPressed) {
 			pol.points.clear();
