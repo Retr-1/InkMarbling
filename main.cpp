@@ -52,9 +52,10 @@ namespace retr {
 		std::vector<olc::vi2d> points;
 		olc::Pixel color;
 
-		static Polygon createCircle(float r, float x, float y, int nPoints = 10) {
-			float da = 3.1415 * 2 / 10;
+		static Polygon createCircle(float r, float x, float y, int nPoints = 10, olc::Pixel color=olc::WHITE) {
+			float da = 3.1415 * 2 / nPoints;
 			Polygon pol;
+			pol.color = color;
 			for (int i = 0; i < nPoints; i++) {
 				auto p = olc::vf2d(cosf(da * i) * r + x, sinf(da * i) * r + y);
 				pol.points.push_back(p);
@@ -159,8 +160,20 @@ namespace retr {
 	};
 }
 
-void drop() {
-
+void drop(vector<retr::Polygon>& polys, int x, int y, float r, olc::Pixel color) {
+	auto pol = retr::Polygon::createCircle(r, x, y, 50, color);
+	olc::vi2d C(x, y);
+	for (int i = 0; i < polys.size(); i++) {
+		for (int j = 0; j < polys[i].points.size(); j++) {
+			auto& P = polys[i].points[j];
+			olc::vf2d u = P - C;
+			double m = u.x * u.x + u.y * u.y;
+			auto P2 = C + u * sqrt(1 + (r * r) / m);
+			P.x = P2.x;
+			P.y = P2.y;
+		}
+	}
+	polys.push_back(pol);
 }
 
 void tineLine() {
@@ -170,7 +183,7 @@ void tineLine() {
 // Override base class with your custom functionality
 class Window : public olc::PixelGameEngine
 {
-	retr::Polygon pol;
+	vector<retr::Polygon> polys;
 
 public:
 	Window()
@@ -183,7 +196,6 @@ public:
 	bool OnUserCreate() override
 	{
 		// Called once at the start, so create things here
-		pol.color = olc::WHITE;
 		return true;
 	}
 
@@ -191,23 +203,17 @@ public:
 	{
 		// Called once per frame, draws random coloured pixels
 		if (GetMouse(0).bPressed) {
-			pol.points.push_back(GetMousePos());
+			//polys.push_back(retr::Polygon::createCircle(100, GetMouseX(), GetMouseY(), 50));
+			int a = rand() / (float)RAND_MAX * 255;
+			drop(polys, GetMouseX(), GetMouseY(), 100, olc::Pixel(a, a, a));
 		}
 		if (GetKey(olc::R).bPressed) {
-			pol.points.clear();
+			polys.clear();
 		}
 
 		Clear(olc::BLACK);
-		pol.draw(*this);
-		for (auto& p : pol.points) {
-			DrawCircle(p, 5, olc::RED);
-		}
-		for (int i = 0; i < pol.points.size(); i++) {
-			DrawLine(pol.points[i], pol.points[(i + 1) % pol.points.size()], olc::GREEN);
-		}
-
-		if (pol.isInside(GetMousePos(), *this)) {
-			FillCircle(GetMousePos(), 5, olc::BLUE);
+		for (auto& p : polys) {
+			p.draw(*this);
 		}
 
 		return true;
