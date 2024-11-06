@@ -171,9 +171,7 @@ void drop(vector<retr::Polygon>& polys, float x, float y, float r, olc::Pixel co
 			auto& P = polys[i].points[j];
 			olc::vf2d u = P - C;
 			double m = u.x * u.x + u.y * u.y;
-			olc::vf2d P2 = C + u * sqrt(1 + (r * r) / m);
-			P.x = P2.x;
-			P.y = P2.y;
+			P = C + u * sqrt(1 + (r * r) / m);
 		}
 	}
 	polys.push_back(pol);
@@ -208,6 +206,7 @@ public:
 public:
 	bool OnUserCreate() override
 	{
+		srand(time(0));
 		// Called once at the start, so create things here
 		return true;
 	}
@@ -244,7 +243,6 @@ public:
 
 int main()
 {
-	srand(time(0));
 	Window win;
 	if (win.Construct(800, 800, 1, 1))
 		win.Start();
