@@ -49,10 +49,10 @@ namespace retr {
 	};
 	class Polygon {
 	public:
-		std::vector<olc::vi2d> points;
+		std::vector<olc::vf2d> points;
 		olc::Pixel color;
 
-		static Polygon createCircle(float r, float x, float y, int nPoints = 10, olc::Pixel color=olc::WHITE) {
+		static Polygon createCircle(float x, float y, float r, int nPoints = 10, olc::Pixel color=olc::WHITE) {
 			float da = 3.1415 * 2 / nPoints;
 			Polygon pol;
 			pol.color = color;
@@ -97,8 +97,8 @@ namespace retr {
 				int j = (i + 1) % points.size();
 				events.push_back(std::make_tuple(points[i].y, i));
 				events.push_back(std::make_tuple(points[j].y, i));
-				ymin = std::min(points[i].y, ymin);
-				ymax = std::max(points[i].y, ymax);
+				ymin = std::min(points[i].y, (float)ymin);
+				ymax = std::max(points[i].y, (float)ymax);
 			}
 
 			std::sort(events.begin(), events.end());
@@ -113,6 +113,8 @@ namespace retr {
 
 			int e = 0;
 
+			std::vector<bool> used(points.size(), false);
+
 			for (int y = ymin; y <= ymax; y++) {
 				while (e < events.size() && std::get<0>(events[e]) <= y) {
 					int id = get<1>(events[e]);
@@ -123,8 +125,9 @@ namespace retr {
 						swap(i, j);
 					}
 
-					if (points[j].y > y) {
+					if (!used[id]) {
 						// adding
+						used[id] = true;
 						SweepObject swee;
 						swee.x = points[i].x;
 						swee.dx = (points[j].x - points[i].x) / (double)(points[j].y - points[i].y);
@@ -160,15 +163,15 @@ namespace retr {
 	};
 }
 
-void drop(vector<retr::Polygon>& polys, int x, int y, float r, olc::Pixel color) {
-	auto pol = retr::Polygon::createCircle(r, x, y, 50, color);
-	olc::vi2d C(x, y);
+void drop(vector<retr::Polygon>& polys, float x, float y, float r, olc::Pixel color) {
+	retr::Polygon pol = retr::Polygon::createCircle(x, y, r, 50, color);
+	olc::vf2d C(x, y);
 	for (int i = 0; i < polys.size(); i++) {
 		for (int j = 0; j < polys[i].points.size(); j++) {
 			auto& P = polys[i].points[j];
 			olc::vf2d u = P - C;
 			double m = u.x * u.x + u.y * u.y;
-			auto P2 = C + u * sqrt(1 + (r * r) / m);
+			olc::vf2d P2 = C + u * sqrt(1 + (r * r) / m);
 			P.x = P2.x;
 			P.y = P2.y;
 		}
@@ -184,6 +187,7 @@ void tineLine() {
 class Window : public olc::PixelGameEngine
 {
 	vector<retr::Polygon> polys;
+	bool refresh = false;
 
 public:
 	Window()
@@ -203,7 +207,7 @@ public:
 	{
 		// Called once per frame, draws random coloured pixels
 		if (GetMouse(0).bPressed) {
-			//polys.push_back(retr::Polygon::createCircle(100, GetMouseX(), GetMouseY(), 50));
+			refresh = true;
 			int a = rand() / (float)RAND_MAX * 255;
 			drop(polys, GetMouseX(), GetMouseY(), 100, olc::Pixel(a, a, a));
 		}
@@ -211,9 +215,12 @@ public:
 			polys.clear();
 		}
 
-		Clear(olc::BLACK);
-		for (auto& p : polys) {
-			p.draw(*this);
+		if (refresh) {
+			refresh = false;
+			Clear(olc::BLACK);
+			for (auto& p : polys) {
+				p.draw(*this);
+			}
 		}
 
 		return true;
@@ -223,8 +230,10 @@ public:
 
 int main()
 {
+	srand(time(0));
 	Window win;
 	if (win.Construct(800, 800, 1, 1))
 		win.Start();
+	
 	return 0;
 }
