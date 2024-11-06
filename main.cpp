@@ -179,8 +179,17 @@ void drop(vector<retr::Polygon>& polys, float x, float y, float r, olc::Pixel co
 	polys.push_back(pol);
 }
 
-void tineLine() {
-
+void tineLine(vector<retr::Polygon>& polys, olc::vf2d B, olc::vf2d M, float z, float c) {
+	M = M.norm();
+	olc::vf2d N(-M.y, M.x);
+	float u = 1 / pow(2, 1 / c);
+	for (int i = 0; i < polys.size(); i++) {
+		for (int j = 0; j < polys[i].points.size(); j++) {
+			auto& P = polys[i].points[j];
+			float d = abs((P - B).dot(N));
+			P = P + z * pow(u, d) * M;
+		}
+	}
 }
 
 // Override base class with your custom functionality
@@ -209,11 +218,16 @@ public:
 		if (GetMouse(0).bPressed) {
 			refresh = true;
 			int a = rand() / (float)RAND_MAX * 255;
-			drop(polys, GetMouseX(), GetMouseY(), 100, olc::Pixel(a, a, a));
+			drop(polys, GetMouseX(), GetMouseY(), 40, olc::Pixel(a, a, a));
+		}
+		if (GetMouse(1).bPressed) {
+			refresh = true;
+			tineLine(polys, GetMousePos(), { 0, 1.0f }, 80, 16);
 		}
 		if (GetKey(olc::R).bPressed) {
 			polys.clear();
 		}
+		
 
 		if (refresh) {
 			refresh = false;
